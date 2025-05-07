@@ -1,5 +1,9 @@
 # SieveTube AI 🎥
 
+<div align="center">
+  <img src="https://github.com/Dphenomenal101/sievetube-ai/blob/main/sievetube-screenshot.png?raw=true" alt="SieveTube AI Interface" width="100%" />
+</div>
+
 SieveTube is a free AI tool that lets you have chat with any YouTube video. Ask questions and get accurate answers backed by precise video timestamps, making it easy to verify information directly from the source. Powered by Google's Gemini 2.0 Flash, it understands video context deeply and provides reliable, evidence-based responses.
 
 ## 🌟 Features
