@@ -28,10 +28,10 @@ export function convertMessageContentToHTML(content: string, videoId: string): s
   return content
     .replace(/\[(\d{2}:\d{2}:\d{2})\]/g, (match, timestamp) => {
       const seconds = convertTimestampToSeconds(match)
-      return `<a href="https://youtube.com/watch?v=${videoId}&t=${seconds}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium">${match}</a>`
+      return `<a href="#" onclick="event.preventDefault(); window.seekToTime(${seconds})" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium">${match}</a>`
     })
     .replace(/\[(\d{2}):(\d{2})\]/g, (match, timestamp) => {
       const seconds = convertTimestampToSeconds(match)
-      return `<a href="https://youtube.com/watch?v=${videoId}&t=${seconds}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium">${match}</a>`
+      return `<a href="#" onclick="event.preventDefault(); window.seekToTime(${seconds})" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium">${match}</a>`
     })
 }

@@ -9,9 +9,11 @@ interface VideoPlayerProps {
 }
 
 export default function VideoPlayer({ videoId }: VideoPlayerProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [thumbnailError, setThumbnailError] = useState(false)
+  const [player, setPlayer] = useState<any>(null)
 
   useEffect(() => {
     // Only load the API if it hasn't been loaded yet
@@ -27,7 +29,7 @@ export default function VideoPlayer({ videoId }: VideoPlayerProps) {
       if (!playerRef.current) return
 
       try {
-        ;new (window as any).YT.Player(playerRef.current, {
+        const newPlayer = new (window as any).YT.Player(playerRef.current, {
           videoId,
           playerVars: {
             autoplay: 0,
@@ -37,7 +39,10 @@ export default function VideoPlayer({ videoId }: VideoPlayerProps) {
           height: "100%",
           width: "100%",
           events: {
-            onReady: () => setIsLoading(false),
+            onReady: () => {
+              setIsLoading(false)
+              setPlayer(newPlayer)
+            },
           },
         })
       } catch (error) {
@@ -60,8 +65,26 @@ export default function VideoPlayer({ videoId }: VideoPlayerProps) {
     }
   }, [videoId])
 
+  // Add seekToTime function to window object
+  useEffect(() => {
+    (window as any).seekToTime = (seconds: number) => {
+      if (player && typeof player.seekTo === 'function') {
+        player.seekTo(seconds, true)
+        // Scroll to player smoothly
+        containerRef.current?.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        })
+      }
+    }
+
+    return () => {
+      delete (window as any).seekToTime
+    }
+  }, [player])
+
   return (
-    <div className="relative overflow-hidden rounded-xl border border-slate-100">
+    <div ref={containerRef} className="relative overflow-hidden rounded-xl border border-slate-100">
       <div className="aspect-video w-full relative">
         {/* Show thumbnail while loading */}
         {isLoading && !thumbnailError && (
