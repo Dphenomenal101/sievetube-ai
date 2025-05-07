@@ -23,7 +23,7 @@ export default function Home() {
             </div>
 
             <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">
-              SieveTube Chat
+              SieveTube AI
             </h1>
             <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto">
               Chat with any YouTube video. Ask questions, get summaries, and interact with video content through AI.
