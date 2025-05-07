@@ -9,12 +9,14 @@ import { useRouter } from "next/navigation"
 import { extractVideoId } from "@/lib/youtube-utils"
 import { AlertCircle, Loader2, SendHorizontal, Youtube } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useJobCache } from "@/lib/hooks/use-job-cache"
 
 export default function YouTubeInput() {
   const [url, setUrl] = useState("")
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
+  const { clearAllJobs } = useJobCache()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,6 +30,8 @@ export default function YouTubeInput() {
       return
     }
 
+    // Clear all job caches when starting a new video
+    clearAllJobs()
     setError("")
     router.push(`/chat/${videoId}`)
   }

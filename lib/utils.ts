@@ -6,17 +6,32 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function convertTimestampToSeconds(timestamp: string): number {
-  const match = timestamp.match(/\[(\d{2}):(\d{2}):(\d{2})\]/)
-  if (!match) return 0
+  // Try HH:MM:SS format first
+  let match = timestamp.match(/\[(\d{2}):(\d{2}):(\d{2})\]/)
+  if (match) {
+    const [_, hours, minutes, seconds] = match
+    return Number.parseInt(hours) * 3600 + Number.parseInt(minutes) * 60 + Number.parseInt(seconds)
+  }
 
-  const [_, hours, minutes, seconds] = match
-  return Number.parseInt(hours) * 3600 + Number.parseInt(minutes) * 60 + Number.parseInt(seconds)
+  // Try MM:SS format
+  match = timestamp.match(/\[(\d{2}):(\d{2})\]/)
+  if (match) {
+    const [_, minutes, seconds] = match
+    return Number.parseInt(minutes) * 60 + Number.parseInt(seconds)
+  }
+
+  return 0
 }
 
 export function convertMessageContentToHTML(content: string, videoId: string): string {
-  // Replace timestamps [HH:MM:SS] with clickable links
-  return content.replace(/\[(\d{2}:\d{2}:\d{2})\]/g, (match, timestamp) => {
-    const seconds = convertTimestampToSeconds(match)
-    return `<a href="https://youtu.be/${videoId}?t=${seconds}" target="_blank" class="text-blue-600 hover:text-blue-800 hover:underline">${match}</a>`
-  })
+  // Replace both HH:MM:SS and MM:SS format timestamps with clickable links
+  return content
+    .replace(/\[(\d{2}:\d{2}:\d{2})\]/g, (match, timestamp) => {
+      const seconds = convertTimestampToSeconds(match)
+      return `<a href="https://youtube.com/watch?v=${videoId}&t=${seconds}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium">${match}</a>`
+    })
+    .replace(/\[(\d{2}):(\d{2})\]/g, (match, timestamp) => {
+      const seconds = convertTimestampToSeconds(match)
+      return `<a href="https://youtube.com/watch?v=${videoId}&t=${seconds}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium">${match}</a>`
+    })
 }

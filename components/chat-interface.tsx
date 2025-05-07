@@ -9,7 +9,7 @@ import { Send, Loader2, Bot, UserIcon, Info } from "lucide-react"
 import type { VideoInfo } from "@/lib/youtube-api"
 import { cn, convertMessageContentToHTML } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useLocalStorage } from "@/lib/hooks/use-local-storage"
+import { useJobCache } from "@/lib/hooks/use-job-cache"
 import { TypingAnimation } from "./typing-animation"
 
 interface ChatInterfaceProps {
@@ -28,9 +28,9 @@ interface Message {
 
 interface JobState {
   downloadJobId: string | null
-  transcriptionJobId: string | null
-  status: "downloading" | "transcribing" | "finished" | "failed"
+  status: "processing" | "completed" | "failed"
   lastChecked: number
+  subtitles?: string
 }
 
 export default function ChatInterface({ videoId, videoInfo }: ChatInterfaceProps) {
@@ -47,13 +47,14 @@ export default function ChatInterface({ videoId, videoInfo }: ChatInterfaceProps
   const [isProcessing, setIsProcessing] = useState(true)
   const [processingProgress, setProcessingProgress] = useState(0)
   const [isChatAvailable, setIsChatAvailable] = useState(false)
-  const [jobState, setJobState] = useLocalStorage<JobState>(`video-job-${videoId}`, {
+  const { getJobState, setJobState } = useJobCache()
+  const jobState = getJobState(videoId) || {
     downloadJobId: null,
-    transcriptionJobId: null,
-    status: "downloading",
+    status: "processing",
     lastChecked: 0,
-  })
+  }
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const retryTimeoutRef = useRef<NodeJS.Timeout>()
 
   useEffect(() => {
     console.log("Initial jobState:", jobState)
@@ -62,7 +63,7 @@ export default function ChatInterface({ videoId, videoInfo }: ChatInterfaceProps
       processingProgress,
       isChatAvailable,
     })
-  }, [])
+  }, [jobState, isProcessing, processingProgress, isChatAvailable])
 
   useEffect(() => {
     if (jobState.status === "finished") {
@@ -103,43 +104,89 @@ export default function ChatInterface({ videoId, videoInfo }: ChatInterfaceProps
       return
     }
 
-    const checkStatus = async () => {
-      if (!jobState.transcriptionJobId) return
+    // Only poll if we're still processing
+    if (jobState.status === "processing" && jobState.downloadJobId) {
+      let pollInterval: NodeJS.Timeout | null = null;
+      
+      const checkStatus = async () => {
+        try {
+          const response = await fetch("/api/process-video", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ videoId }),
+          })
 
-      try {
-        const response = await fetch("/api/job-status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jobId: jobState.transcriptionJobId }),
-        })
+          if (!response.ok) {
+            throw new Error("Failed to check job status")
+          }
 
-        if (!response.ok) {
-          throw new Error("Failed to check job status")
-        }
+          const data = await response.json()
+          console.log("Job status response:", data)
 
-        const status = await response.json()
-        console.log("Job status response:", status)
-
-        if (status.status === "finished") {
-          setIsProcessing(false)
-          setProcessingProgress(100)
-          setIsChatAvailable(true)
-          setJobState((prev) => ({
-            ...prev,
-            status: "finished",
+          if (data.status === "finished" && data.parsedSubtitles) {
+            // Clear the polling interval when we get completed status
+            if (pollInterval) {
+              clearInterval(pollInterval)
+              pollInterval = null
+            }
+            
+            setIsProcessing(false)
+            setProcessingProgress(100)
+            setIsChatAvailable(true)
+            setJobState(videoId, {
+              downloadJobId: data.downloadJobId,
+              status: "finished",
+              lastChecked: Date.now(),
+              subtitles: data.parsedSubtitles,
+            })
+            setMessages((prev) => [
+              ...prev.filter((m) => m.id !== "system-1"),
+              {
+                id: "system-2",
+                content: `Transcript ready for "${videoInfo.title}". You can now chat about the video content.`,
+                role: "system",
+                timestamp: new Date(),
+              },
+            ])
+          } else if (data.status === "failed") {
+            // Clear the polling interval on failure
+            if (pollInterval) {
+              clearInterval(pollInterval)
+              pollInterval = null
+            }
+            
+            setJobState(videoId, {
+              ...jobState,
+              status: "failed",
+              lastChecked: Date.now(),
+            })
+            setIsProcessing(false)
+            setProcessingProgress(0)
+            setIsChatAvailable(false)
+            setMessages((prev) => [
+              ...prev.filter((m) => m.id !== "system-1"),
+              {
+                id: "system-error",
+                content: "Failed to process the video. Please try refreshing the page or try a different video.",
+                role: "system",
+                timestamp: new Date(),
+              },
+            ])
+          }
+        } catch (error) {
+          console.error("Error checking job status:", error)
+          
+          // Clear the polling interval on error
+          if (pollInterval) {
+            clearInterval(pollInterval)
+            pollInterval = null
+          }
+          
+          setJobState(videoId, {
+            ...jobState,
+            status: "failed",
             lastChecked: Date.now(),
-          }))
-          setMessages((prev) => [
-            ...prev.filter((m) => m.id !== "system-1"),
-            {
-              id: "system-2",
-              content: `Transcript ready for "${videoInfo.title}". You can now chat about the video content.`,
-              role: "system",
-              timestamp: new Date(),
-            },
-          ])
-        } else if (status.status === "failed") {
-          setJobState((prev) => ({ ...prev, status: "failed" }))
+          })
           setIsProcessing(false)
           setProcessingProgress(0)
           setIsChatAvailable(false)
@@ -147,67 +194,32 @@ export default function ChatInterface({ videoId, videoInfo }: ChatInterfaceProps
             ...prev.filter((m) => m.id !== "system-1"),
             {
               id: "system-error",
-              content: "Failed to process the video. Please try refreshing the page or try a different video.",
+              content: "Failed to check video processing status. Please try refreshing the page.",
               role: "system",
               timestamp: new Date(),
             },
           ])
-        } else if (status.progress) {
-          setProcessingProgress(status.progress * 100)
         }
-      } catch (error) {
-        console.error("Error checking job status:", error)
-        setJobState((prev) => ({ ...prev, status: "failed" }))
-        setIsProcessing(false)
-        setProcessingProgress(0)
-        setIsChatAvailable(false)
-        setMessages((prev) => [
-          ...prev.filter((m) => m.id !== "system-1"),
-          {
-            id: "system-error",
-            content: "Failed to check video processing status. Please try refreshing the page.",
-            role: "system",
-            timestamp: new Date(),
-          },
-        ])
+      }
+
+      // Start polling
+      pollInterval = setInterval(checkStatus, 5000)
+      
+      // Initial check
+      checkStatus()
+
+      // Cleanup function
+      return () => {
+        if (pollInterval) {
+          clearInterval(pollInterval)
+          pollInterval = null
+        }
       }
     }
-
-    const pollInterval = setInterval(checkStatus, 5000)
-    return () => clearInterval(pollInterval)
-  }, [jobState.status, jobState.transcriptionJobId, videoInfo.title])
+  }, [jobState.status, jobState.downloadJobId, videoId, videoInfo.title])
 
   useEffect(() => {
     const processVideo = async () => {
-      // Only process if we don't have a job state or if the previous attempt failed
-      if (jobState.status === "finished") {
-        setIsProcessing(false)
-        setProcessingProgress(100)
-        setIsChatAvailable(true)
-        setMessages([
-          {
-            id: "system-2",
-            content: `Transcript ready for "${videoInfo.title}". You can now chat about the video content.`,
-            role: "system",
-            timestamp: new Date(),
-          },
-        ])
-        return
-      }
-
-      // Reset state when starting a new process
-      setMessages([
-        {
-          id: "system-1",
-          content: "Processing video transcript...",
-          role: "system",
-          timestamp: new Date(),
-        },
-      ])
-      setIsProcessing(true)
-      setProcessingProgress(0)
-      setIsChatAvailable(false)
-
       try {
         const response = await fetch("/api/process-video", {
           method: "POST",
@@ -216,27 +228,108 @@ export default function ChatInterface({ videoId, videoInfo }: ChatInterfaceProps
         })
 
         if (!response.ok) {
+          if (response.status === 404) {
+            // If the job is not ready yet, retry after a delay
+            retryTimeoutRef.current = setTimeout(processVideo, 5000)
+            return
+          }
           throw new Error("Failed to process video")
         }
 
         const data = await response.json()
-        setJobState({
-          downloadJobId: data.downloadJobId,
-          transcriptionJobId: data.transcriptionJobId,
-          status: data.status,
-          lastChecked: Date.now(),
-        })
+        
+        if (data.status === "finished" && data.subtitles) {
+          setJobState(videoId, {
+            downloadJobId: data.downloadJobId,
+            status: "finished",
+            lastChecked: Date.now(),
+            subtitles: data.subtitles,
+          })
+          setIsProcessing(false)
+          setProcessingProgress(100)
+          setIsChatAvailable(true)
+          setMessages([
+            {
+              id: "system-2",
+              content: `Transcript ready for "${videoInfo.title}". You can now chat about the video content.`,
+              role: "system",
+              timestamp: new Date(),
+            },
+          ])
+        } else if (data.status === "processing") {
+          setJobState(videoId, {
+            downloadJobId: data.downloadJobId,
+            status: "processing",
+            lastChecked: Date.now(),
+          })
+          // Retry after a delay
+          retryTimeoutRef.current = setTimeout(processVideo, 5000)
+        } else if (data.status === "failed") {
+          setJobState(videoId, {
+            ...jobState,
+            status: "failed",
+            lastChecked: Date.now(),
+          })
+          setIsProcessing(false)
+          setProcessingProgress(0)
+          setIsChatAvailable(false)
+          setMessages([
+            {
+              id: "system-error",
+              content: "Failed to process the video. Please try refreshing the page or try a different video.",
+              role: "system",
+              timestamp: new Date(),
+            },
+          ])
+        }
       } catch (error) {
         console.error("Error processing video:", error)
-        setJobState((prev) => ({ ...prev, status: "failed" }))
+        setJobState(videoId, {
+          ...jobState,
+          status: "failed",
+          lastChecked: Date.now(),
+        })
+        setIsProcessing(false)
+        setProcessingProgress(0)
+        setIsChatAvailable(false)
+        setMessages([
+          {
+            id: "system-error",
+            content: "Failed to process the video. Please try refreshing the page or try a different video.",
+            role: "system",
+            timestamp: new Date(),
+          },
+        ])
       }
     }
 
-    processVideo()
-  }, [videoId])
+    // Only start processing if we don't have a finished job
+    if (jobState.status !== "finished") {
+      processVideo()
+    } else {
+      // If we have a finished job, set up the UI accordingly
+      setIsProcessing(false)
+      setProcessingProgress(100)
+      setIsChatAvailable(true)
+      setMessages([
+        {
+          id: "system-2",
+          content: `Transcript ready for "${videoInfo.title}". You can now chat about the video content.`,
+          role: "system",
+          timestamp: new Date(),
+        },
+      ])
+    }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current)
+      }
+    }
+  }, [videoId, videoInfo.title])
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     if (!input.trim() || isLoading || !isChatAvailable) return
 
     const userMessage: Message = {
@@ -259,8 +352,9 @@ export default function ChatInterface({ videoId, videoInfo }: ChatInterfaceProps
             role: m.role === "system" ? "assistant" : m.role,
             content: m.content,
           })),
-          transcriptionJobId: jobState.transcriptionJobId,
+          videoId,
           videoMetadata: videoInfo,
+          cachedSubtitles: jobState.subtitles
         }),
       })
 
@@ -291,6 +385,13 @@ export default function ChatInterface({ videoId, videoInfo }: ChatInterfaceProps
       ])
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && isChatAvailable && !isLoading) {
+      e.preventDefault()
+      handleSubmit()
     }
   }
 
@@ -374,6 +475,7 @@ export default function ChatInterface({ videoId, videoInfo }: ChatInterfaceProps
               >
                 {message.role === "assistant" ? (
                   <div
+                    className="prose prose-sm max-w-none prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline"
                     dangerouslySetInnerHTML={{
                       __html: convertMessageContentToHTML(message.content, videoId),
                     }}
@@ -424,26 +526,13 @@ export default function ChatInterface({ videoId, videoInfo }: ChatInterfaceProps
                 <div
                   className={cn(
                     "flex-shrink-0 h-2 w-2 rounded-full",
-                    jobState.status === "downloading" ? "bg-blue-500" : "bg-slate-200",
+                    jobState.status === "processing" ? "bg-blue-500" : "bg-slate-200",
                   )}
                 />
                 <span
-                  className={cn("text-sm", jobState.status === "downloading" ? "text-slate-800" : "text-slate-500")}
+                  className={cn("text-sm", jobState.status === "processing" ? "text-slate-800" : "text-slate-500")}
                 >
-                  Downloading video
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <div
-                  className={cn(
-                    "flex-shrink-0 h-2 w-2 rounded-full",
-                    jobState.status === "transcribing" ? "bg-blue-500" : "bg-slate-200",
-                  )}
-                />
-                <span
-                  className={cn("text-sm", jobState.status === "transcribing" ? "text-slate-800" : "text-slate-500")}
-                >
-                  Generating transcript
+                  Processing video
                 </span>
               </div>
             </div>
@@ -460,12 +549,7 @@ export default function ChatInterface({ videoId, videoInfo }: ChatInterfaceProps
             placeholder={isChatAvailable ? "Ask a question about the video..." : "Waiting for transcript..."}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && isChatAvailable && !isLoading) {
-                e.preventDefault()
-                handleSubmit(e)
-              }
-            }}
+            onKeyDown={handleKeyDown}
             className="flex-1"
           />
           <Button type="submit" size="icon" disabled={isLoading || !isChatAvailable}>

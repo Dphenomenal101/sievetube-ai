@@ -4,36 +4,16 @@ import VideoPlayer from "@/components/video-player"
 import ChatInterface from "@/components/chat-interface"
 import VideoMetadata from "@/components/video-metadata"
 import { getVideoInfo } from "@/lib/youtube-api"
-import { Plus, Home } from "lucide-react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import ChatHeader from "@/components/chat-header"
 
 export default async function ChatPage({ params }: { params: { videoId: string } }) {
+  // Ensure params is properly awaited
   const { videoId } = params
   const videoInfo = await getVideoInfo(videoId)
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b sticky top-0 z-10">
-        <div className="container mx-auto p-4">
-          <div className="flex items-center justify-between">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              <Home className="h-4 w-4" />
-              SieveTube Chat
-            </Link>
-
-            <Link href="/">
-              <Button variant="outline" size="sm" className="gap-1">
-                <Plus className="h-3 w-3" />
-                New Video
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <ChatHeader />
 
       <div className="container mx-auto p-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

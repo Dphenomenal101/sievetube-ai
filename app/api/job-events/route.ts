@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     // Find the video ID associated with this job
     let affectedVideoId: string | undefined
     for (const [videoId, jobInfo] of jobCache.entries()) {
-      if (jobInfo.downloadJobId === event.id || jobInfo.transcriptionJobId === event.id) {
+      if (jobInfo.downloadJobId === event.id) {
         affectedVideoId = videoId
         break
       }
@@ -41,14 +41,7 @@ export async function POST(request: Request) {
       jobInfo.status = "failed"
       jobInfo.error = event.error
     } else if (event.status === "completed") {
-      // For download job
-      if (event.id === jobInfo.downloadJobId) {
-        jobInfo.status = "transcribing"
-      }
-      // For transcription job
-      else if (event.id === jobInfo.transcriptionJobId) {
-        jobInfo.status = "completed"
-      }
+      jobInfo.status = "completed"
     }
 
     jobInfo.lastChecked = Date.now()
