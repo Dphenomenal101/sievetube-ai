@@ -24,41 +24,41 @@ export default function VideoPlayer({ videoId }: VideoPlayerProps) {
 
     // Function to create the player
     const createPlayer = () => {
-      if (!playerRef.current) return;
-      
+      if (!playerRef.current) return
+
       try {
-        new (window as any).YT.Player(playerRef.current, {
+        ;new (window as any).YT.Player(playerRef.current, {
           videoId,
           playerVars: {
             autoplay: 0,
             modestbranding: 1,
             rel: 0,
           },
-          height: '100%',
-          width: '100%',
+          height: "100%",
+          width: "100%",
           events: {
             onReady: () => setIsLoading(false),
           },
-        });
+        })
       } catch (error) {
-        console.error("Error creating YouTube player:", error);
+        console.error("Error creating YouTube player:", error)
       }
-    };
+    }
 
     // If YT API is already loaded, create player immediately
     if ((window as any).YT && (window as any).YT.Player) {
-      createPlayer();
+      createPlayer()
     } else {
       // If not, wait for API to load
       window.onYouTubeIframeAPIReady = () => {
-        createPlayer();
-      };
+        createPlayer()
+      }
     }
 
     return () => {
-      window.onYouTubeIframeAPIReady = () => {};
-    };
-  }, [videoId]);
+      window.onYouTubeIframeAPIReady = () => {}
+    }
+  }, [videoId])
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-slate-100">

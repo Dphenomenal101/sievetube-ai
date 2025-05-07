@@ -23,7 +23,7 @@ const exampleVideos = [
     title: "CSS Tutorial - Zero to Hero",
     thumbnail: "https://img.youtube.com/vi/bMknfKXIFA8/maxresdefault.jpg",
     duration: "6:18:37",
-  }
+  },
 ]
 
 export default function ExampleVideos() {

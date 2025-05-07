@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react'
+"use client"
+
+import { useState, useEffect } from "react"
 
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((prev: T) => T)) => void] {
   // Get from local storage then
   // parse stored json or return initialValue
   const readValue = () => {
     // Prevent build error "window is undefined" but keep keep working
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return initialValue
     }
 
@@ -31,7 +33,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
       // Save state
       setStoredValue(valueToStore)
       // Save to local storage
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         window.localStorage.setItem(key, JSON.stringify(valueToStore))
       }
     } catch (error) {
@@ -44,4 +46,4 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
   }, [])
 
   return [storedValue, setValue]
-} 
+}

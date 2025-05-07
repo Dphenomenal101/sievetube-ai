@@ -13,21 +13,21 @@ export async function getVideoInfo(videoId: string): Promise<VideoInfo> {
   const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 
   if (!YOUTUBE_API_KEY) {
-    throw new Error('YouTube API key is not configured')
+    throw new Error("YouTube API key is not configured")
   }
 
   const response = await fetch(
-    `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${YOUTUBE_API_KEY}`
+    `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${YOUTUBE_API_KEY}`,
   )
 
   if (!response.ok) {
-    throw new Error('Failed to fetch video info from YouTube')
+    throw new Error("Failed to fetch video info from YouTube")
   }
 
   const data = await response.json()
-  
+
   if (!data.items?.[0]) {
-    throw new Error('Video not found')
+    throw new Error("Video not found")
   }
 
   const video = data.items[0]
@@ -35,10 +35,10 @@ export async function getVideoInfo(videoId: string): Promise<VideoInfo> {
 
   // Convert ISO 8601 duration to seconds
   const durationMatch = contentDetails.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-  const hours = parseInt(durationMatch?.[1] || '0')
-  const minutes = parseInt(durationMatch?.[2] || '0')
-  const seconds = parseInt(durationMatch?.[3] || '0')
-  const durationInSeconds = (hours * 3600) + (minutes * 60) + seconds
+  const hours = Number.parseInt(durationMatch?.[1] || "0")
+  const minutes = Number.parseInt(durationMatch?.[2] || "0")
+  const seconds = Number.parseInt(durationMatch?.[3] || "0")
+  const durationInSeconds = hours * 3600 + minutes * 60 + seconds
 
   return {
     title: snippet.title,
