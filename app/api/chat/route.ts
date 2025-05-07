@@ -141,7 +141,7 @@ Instead of saying "the speaker explains..." or "they mention...", simply state "
         Authorization: `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "llama-guard-3-8b",
+        model: "llama-3.3-70b-versatile",
         messages: [systemMessage, ...messages],
         temperature: 0.7,
         max_tokens: 4096,
