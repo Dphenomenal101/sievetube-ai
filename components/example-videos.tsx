@@ -7,22 +7,22 @@ import { Play } from "lucide-react"
 
 const exampleVideos = [
   {
-    id: "8jPQjjsBbIc",
-    title: "What is Next.js?",
-    thumbnail: "https://img.youtube.com/vi/8jPQjjsBbIc/maxresdefault.jpg",
+    id: "Pg72m3CjuK4",
+    title: "How to START a STARTUP with Michael Seibel",
+    thumbnail: "https://img.youtube.com/vi/Pg72m3CjuK4/maxresdefault.jpg",
+    duration: "15:42",
+  },
+  {
+    id: "Sklc_fQBmcs",
+    title: "Next.js in 100 Seconds // Plus Full Beginner's Tutorial",
+    thumbnail: "https://img.youtube.com/vi/Sklc_fQBmcs/maxresdefault.jpg",
     duration: "11:32",
   },
   {
-    id: "w7ejDZ8SWv8",
-    title: "React JS Course for Beginners",
-    thumbnail: "https://img.youtube.com/vi/w7ejDZ8SWv8/maxresdefault.jpg",
-    duration: "8:30:00",
-  },
-  {
-    id: "bMknfKXIFA8",
-    title: "CSS Tutorial - Zero to Hero",
-    thumbnail: "https://img.youtube.com/vi/bMknfKXIFA8/maxresdefault.jpg",
-    duration: "6:18:37",
+    id: "BJjsfNO5JTo",
+    title: "How To Get The Most Out Of Vibe Coding | Startup School",
+    thumbnail: "https://img.youtube.com/vi/BJjsfNO5JTo/maxresdefault.jpg",
+    duration: "12:15",
   },
 ]
 
